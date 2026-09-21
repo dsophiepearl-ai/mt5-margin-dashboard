@@ -1,69 +1,55 @@
 # FX Margin Dashboard
 
-A small trading-risk tool built for two responsibilities named directly in
-forex Risk Analyst / Trading Operations job postings:
+Streamlit tool for monitoring account risk and simulating margin calls / stop-outs on an MT5-style trading account.
 
-- "Familiarity with trading platforms (e.g., MT4/MT5)"
-- "Execute hedge trades and facilitate margin calls or account liquidations as needed"
+## Features
 
-It has two parts:
+- Live account snapshot: balance, equity, used margin, margin level, open positions
+- Margin call & stop-out simulator: configurable price drift, margin call threshold, and stop-out threshold; force-closes the largest losing position first and logs every event
+- Works with a real MT5 demo account or a built-in mock client (no broker account required to run)
 
-1. **Live Account Snapshot** - connects to MetaTrader 5 (or a realistic mock,
-   see below) and shows balance, equity, used margin, margin level, and open
-   positions.
-2. **Margin Call & Stop-Out Simulator** - a standalone rules engine that
-   simulates a price moving against an open position and reacts the way a
-   real risk desk would: issue a margin call warning, then force-close the
-   position (stop-out / liquidation) if the margin level keeps falling.
+## Skills demonstrated
 
-## Why it's built this way
+| Skill | Where |
+|---|---|
+| Python (OOP, dataclasses, type hints) | `src/margin_engine.py`, `src/mt5_client.py` |
+| MT4/MT5 platform integration | `src/mt5_client.py` |
+| Margin / equity / leverage calculations | `Account`, `Position` classes in `src/margin_engine.py` |
+| Real-time risk monitoring & rules-based alerting | `MarginMonitor` class |
+| Dashboarding / data visualization | `src/dashboard.py` (Streamlit) |
+| Unit testing | `tests/test_margin_engine.py` — 6 tests |
+| Config management (env vars, no hardcoded secrets) | `.env.example` |
+| Version control | git repo, ready to push |
 
-The official `MetaTrader5` Python package is Windows-only and requires a
-running MT5 terminal logged into an account, which makes it awkward to
-demo, test, or run in CI. So the project uses a client abstraction
-(`src/mt5_client.py`): the rest of the app only ever calls
-`account_info()` / `positions_get()` / `symbol_info_tick()`, and doesn't
-know or care whether the answer came from a real terminal or from
-`MockMT5Client`, which generates realistic account and position data.
-This means the whole project runs out of the box with no broker account,
-and can be pointed at a real MT5 demo account later just by setting
-environment variables.
+## Tech stack
 
-The margin call / stop-out logic (`src/margin_engine.py`) is deliberately
-kept separate from the MT5 client. A real account can take a long time to
-drift into a margin call naturally, which makes it hard to demo reliably -
-so the simulator uses its own synthetic price generator with a
-configurable drift, letting you force the scenario on demand and watch the
-exact sequence a risk desk follows: **monitor -> warn -> escalate -> force-close**.
+Python 3, Streamlit, pandas
 
 ## Project structure
 
 ```
 mt5-margin-dashboard/
-  README.md
-  requirements.txt
-  .env.example
-  .gitignore
   src/
-    mt5_client.py      # real/mock MetaTrader 5 client abstraction
-    margin_engine.py   # margin call / stop-out simulator (standalone, synthetic)
+    mt5_client.py      # MT5 client: real package or mock, same interface
+    margin_engine.py   # Account/Position models + margin call & stop-out engine
     dashboard.py        # Streamlit UI, two tabs
   tests/
     test_margin_engine.py
+  requirements.txt
+  .env.example
 ```
 
 ## Key concepts
 
-- **Equity** = balance + unrealized profit/loss across all open positions
-- **Used margin** = collateral locked to keep positions open (position size ÷ leverage)
-- **Margin level** = equity ÷ used margin × 100%
-- **Margin call** = a warning issued once margin level falls below a threshold (default 100%)
-- **Stop-out / liquidation** = automatic forced closure once margin level falls below a lower
-  threshold (default 50%), closing the most lossy position first and repeating until the
-  level recovers or no positions remain
+| Term | Definition |
+|---|---|
+| Equity | balance + unrealized P/L across all open positions |
+| Used margin | collateral locked to keep positions open (position size ÷ leverage) |
+| Margin level | equity ÷ used margin × 100% |
+| Margin call | warning issued once margin level drops below a threshold (default 100%) |
+| Stop-out | forced closure once margin level drops below a lower threshold (default 50%), largest loser closed first |
 
-Both thresholds are configurable in the simulator sidebar, because real values vary by
-broker and regulator - there's no universal number.
+Thresholds are configurable — real values vary by broker and regulator.
 
 ## Setup
 
@@ -86,14 +72,11 @@ pytest
 
 ## Connecting to a real MT5 demo account (optional)
 
-1. Install the `MetaTrader5` package on a Windows machine with the MT5 terminal installed and
-   logged into a demo account (uncomment it in `requirements.txt`)
+1. Install the `MetaTrader5` package on a Windows machine with the MT5 terminal installed and logged into a demo account (uncomment it in `requirements.txt`)
 2. In `.env`, set `MT5_USE_MOCK=false` and fill in `MT5_LOGIN`, `MT5_PASSWORD`, `MT5_SERVER`
-3. Run the dashboard as normal - the "Live Account Snapshot" tab will now show the real account
+3. Run the dashboard as normal — the "Live Account Snapshot" tab now shows the real account
 
-## What this demonstrates for the role
+## Design notes
 
-- Understanding of margin, equity, and leverage mechanics well enough to model them in code
-- The actual sequence a risk desk follows when an account moves against a client
-- Practical engineering judgment: designing around a platform dependency (MT4/MT5) that can't
-  run everywhere, rather than assuming it can
+- `mt5_client.py` abstracts the MetaTrader5 connection behind a single interface (`account_info()`, `positions_get()`, `symbol_info_tick()`) so the rest of the app doesn't care whether it's talking to a real terminal or the mock client. The real `MetaTrader5` package is Windows-only and requires a logged-in terminal, so the mock keeps the project runnable and testable anywhere.
+- `margin_engine.py` is independent of the MT5 client and uses its own synthetic price generator. A real account can take a long time to drift into a margin call; the simulator lets that scenario be triggered on demand.
