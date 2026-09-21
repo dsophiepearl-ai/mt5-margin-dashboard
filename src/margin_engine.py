@@ -151,7 +151,7 @@ class MarginMonitor:
                 "ticket": loser.ticket,
                 "symbol": loser.symbol,
                 "realized_pnl": round(realized, 2),
-                "margin_level_after": round(self.account.margin_level, 2),
+                "margin_level": round(self.account.margin_level, 2),
                 "message": f"Forced closure: ticket {loser.ticket} ({loser.symbol}) closed at a loss of "
                            f"{realized:.2f} to bring margin level back above the stop-out threshold.",
             })
