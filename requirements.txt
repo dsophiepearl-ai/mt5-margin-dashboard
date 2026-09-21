@@ -1,0 +1,7 @@
+pandas>=2.0
+streamlit>=1.30
+pytest>=7.4
+
+# Optional, Windows-only: the real MetaTrader5 package. Only needed if you
+# set MT5_USE_MOCK=false in .env and want to connect to a live/demo account.
+# MetaTrader5>=5.0.45
